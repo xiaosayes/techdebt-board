@@ -1,0 +1,138 @@
+openapi: 3.0.3
+info:
+  title: TechDebt Board API
+  version: 1.0.0
+  description: 技术债看板后端接口。字段一律 snake_case；错误格式 { error: { code, message } }。
+servers:
+  - url: http://localhost:3001
+
+paths:
+  /api/debts:
+    get:
+      operationId: listDebts
+      summary: 技术债列表
+      parameters:
+        - name: status
+          in: query
+          schema: { type: string, enum: [todo, doing, done] }
+        - name: severity
+          in: query
+          schema: { type: string, enum: [P0, P1, P2] }
+        - name: module
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: 列表
+          content:
+            application/json:
+              example:
+                - id: 1
+                  title: 订单模块重复代码
+                  description: order_service 里三段几乎一样的校验逻辑
+                  severity: P1
+                  module: backend
+                  status: todo
+                  created_at: '2026-11-27T08:00:00Z'
+                  updated_at: '2026-11-27T08:00:00Z'
+
+    post:
+      operationId: createDebt
+      summary: 新建技术债
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, severity, module]
+              properties:
+                title: { type: string, minLength: 1, maxLength: 100 }
+                description: { type: string, default: '' }
+                severity: { type: string, enum: [P0, P1, P2] }
+                module: { type: string, minLength: 1, maxLength: 50 }
+            example: { title: 测试覆盖不足, description: 新代码覆盖率低于60%, severity: P1, module: backend }
+      responses:
+        '201':
+          description: 创建成功
+          content:
+            application/json:
+              example:
+                id: 2
+                title: 测试覆盖不足
+                description: 新代码覆盖率低于60%
+                severity: P1
+                module: backend
+                status: todo
+                created_at: '2026-11-27T08:05:00Z'
+                updated_at: '2026-11-27T08:05:00Z'
+        '400':
+          description: 校验失败
+          content:
+            application/json:
+              example: { error: { code: VALIDATION_ERROR, message: title 是必填项 } }
+
+  /api/debts/{id}:
+    patch:
+      operationId: updateDebt
+      summary: 部分更新（含状态流转）
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title: { type: string }
+                description: { type: string }
+                severity: { type: string, enum: [P0, P1, P2] }
+                module: { type: string }
+                status: { type: string, enum: [todo, doing, done] }
+            example: { status: doing }
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              example:
+                id: 1
+                title: 订单模块重复代码
+                description: order_service 里三段几乎一样的校验逻辑
+                severity: P1
+                module: backend
+                status: doing
+                created_at: '2026-11-27T08:00:00Z'
+                updated_at: '2026-11-27T09:00:00Z'
+        '404':
+          description: 不存在
+          content:
+            application/json:
+              example: { error: { code: DEBT_NOT_FOUND, message: 技术债不存在 } }
+    delete:
+      operationId: deleteDebt
+      summary: 删除
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '204': { description: 删除成功 }
+        '404':
+          description: 不存在
+          content:
+            application/json:
+              example: { error: { code: DEBT_NOT_FOUND, message: 技术债不存在 } }
+
+  /api/stats:
+    get:
+      operationId: getStats
+      summary: 统计
+      responses:
+        '200':
+          description: 统计
+          content:
+            application/json:
+              example:
+                total: 5
+                bySeverity: { P0: 1, P1: 3, P2: 1 }
+                byStatus: { todo: 3, doing: 1, done: 1 }
